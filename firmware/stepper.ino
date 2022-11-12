@@ -5,9 +5,8 @@ int move_distance = 0;
 int move_direction = 1;
 int move_position = 0;
 int move_accel_distance = 0;
+bool move_has_coast = true;
 long long int move_velocity = 0;
-long long int current_velocity = 0;
-long long int move_max_velocity = 0;
 int move_acceleration = 0;
 
 enum state {
@@ -23,9 +22,7 @@ enum state {
 enum state current_state = homing_1;
 
 unsigned long last_time = 0;
-unsigned long accel_time = 0;
-unsigned long decel_time = 0;
-int step_time = 0;
+float T = 0;
 
 void stepper_setup() {
   pinMode(EN_PIN, OUTPUT);
@@ -56,6 +53,7 @@ void stepper_setup() {
 void stepper_tasks() {
   unsigned long current_time = micros();
   long long int velocity = 0;
+  float T_0, T_1;
   switch (current_state) {
     case (homing_1):
       digitalWrite(DIR_PIN, LOW);
@@ -71,6 +69,7 @@ void stepper_tasks() {
         current_state = homing_2;
       }
       break;
+
     case (homing_2):
       digitalWrite(DIR_PIN, HIGH);
       if (current_time - last_time >= 2000) {
@@ -86,6 +85,7 @@ void stepper_tasks() {
         current_state = homing_3;
       }
       break;
+
     case (homing_3):
       digitalWrite(DIR_PIN, LOW);
       if (current_time - last_time >= 2000) {
@@ -101,44 +101,53 @@ void stepper_tasks() {
         current_state = waiting;
       }
       break;
+
     case (starting):
-      if (move_direction > 0) { digitalWrite(DIR_PIN, HIGH); }
-      else { digitalWrite(DIR_PIN, LOW); }
-      last_time = current_time;
-      accel_time = last_time;
+      digitalWrite(DIR_PIN, move_direction > 0); // set move direction
+      move_position = 0; // reset move odometer
+      last_time = current_time; // set start time of first pulse
+      // calculate acceleration distance and determine if trajectory is triangular or trapezoidal
+      move_accel_distance = move_velocity*move_velocity/2/move_acceleration;
+      if (move_accel_distance >= move_distance / 2) {
+        move_accel_distance = move_distance / 2;
+        move_has_coast = false;
+      }
+      else {
+        move_has_coast = true;
+      }
       current_state = calculating;
-      Serial.print(move_distance);
-      Serial.print(" ");
-      Serial.print(move_accel_distance);
-      Serial.print("\n");
       break;
+
     case (calculating):
-      if (move_position <= move_accel_distance) {
-        current_velocity = (current_time - accel_time) * move_acceleration / 1000000;
-        if (current_velocity > move_velocity) { current_velocity = move_velocity; }
+      // coast
+      T_0 = (float)move_position/(float)move_velocity;
+      T_1 = (float)(move_position+1)/(float)move_velocity;
+      if (move_position < move_accel_distance) { // accelerate
+        T_0 = sqrt(2.0*(float)move_acceleration*(float)move_position)/((float)move_acceleration);
+        T_1 = sqrt(2.0*(float)move_acceleration*(float)(move_position+1))/((float)move_acceleration);
       }
-      if (move_position == move_distance - move_accel_distance) {
-        move_max_velocity = current_velocity;
-        decel_time == current_time;
+      if (move_position > move_distance-move_accel_distance) { // decelerate
+        T_0 = -1.0*sqrt(2.0*(float)move_acceleration*((float)move_distance-(float)move_position))/((float)move_acceleration);
+        T_1 = -1.0*sqrt(2.0*(float)move_acceleration*((float)move_distance-(float)(move_position+1)))/((float)move_acceleration);
       }
-      if (move_position >= move_distance - move_accel_distance) {
-        current_velocity = move_max_velocity - (current_time - decel_time) * move_acceleration / 1000000;
-        if (current_velocity < 0) { current_velocity = 0; }
-      }
-      velocity = current_velocity;
-      if (velocity < 100) { velocity = 100; }
-      step_time = 1000000 / velocity;
+      T = (T_1-T_0)*1000000.0; // step period [s]
       current_state = step_high;
+    //   Serial.print((int)(T/0.5));
+    //   Serial.print("\t");
+    //   Serial.print((int)T);
+    //   Serial.print("\n");
       break;
+
     case (step_high):
-      if (current_time - last_time > step_time / 2) {
+      if (current_time - last_time > (int)(T / 2.0)) {
         digitalWrite(STEP_PIN, HIGH);
         delayMicroseconds(10);
         current_state = step_low;
       }
       break;
+
     case (step_low):
-      if (current_time - last_time > step_time) {
+      if (current_time - last_time > (int)T) {
         digitalWrite(STEP_PIN, LOW);
         last_time = current_time;
         move_position++;
@@ -163,11 +172,8 @@ void stepper_move(MOVE move) {
   else {
     move_direction = 1;
   }
-  move_position = 0;
   move_acceleration = move.acceleration;
   move_velocity = move.velocity;
-  move_accel_distance = (move_velocity * move_velocity) / 2 / move_acceleration;
-  if (move_accel_distance > move_distance / 2) { move_accel_distance = move_distance / 2; }
   current_state = starting;
 }
 
