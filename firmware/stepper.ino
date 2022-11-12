@@ -130,12 +130,8 @@ void stepper_tasks() {
         T_0 = -1.0*sqrt(2.0*(float)move_acceleration*((float)move_distance-(float)move_position))/((float)move_acceleration);
         T_1 = -1.0*sqrt(2.0*(float)move_acceleration*((float)move_distance-(float)(move_position+1)))/((float)move_acceleration);
       }
-      T = (T_1-T_0)*1000000.0; // step period [s]
+      T = (T_1-T_0)*1000000.0; // step period [us]
       current_state = step_high;
-    //   Serial.print((int)(T/0.5));
-    //   Serial.print("\t");
-    //   Serial.print((int)T);
-    //   Serial.print("\n");
       break;
 
     case (step_high):
