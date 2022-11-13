@@ -9,7 +9,7 @@ bool move_has_coast = true;
 long long int move_velocity = 0;
 int move_acceleration = 0;
 
-enum state {
+enum stepper_state {
   homing_1,
   homing_2,
   homing_3,
@@ -19,7 +19,7 @@ enum state {
   step_low,
   waiting
 };
-enum state current_state = homing_1;
+enum stepper_state current_stepper_state = homing_1;
 
 unsigned long last_time = 0;
 float T = 0;
@@ -54,7 +54,7 @@ void stepper_tasks() {
   unsigned long current_time = micros();
   long long int velocity = 0;
   float T_0, T_1;
-  switch (current_state) {
+  switch (current_stepper_state) {
     case (homing_1):
       digitalWrite(DIR_PIN, LOW);
       if (current_time - last_time >= 1000) {
@@ -66,7 +66,7 @@ void stepper_tasks() {
       }
       if (digitalRead(END_PIN)) {
         digitalWrite(STEP_PIN, LOW);
-        current_state = homing_2;
+        current_stepper_state = homing_2;
       }
       break;
 
@@ -82,7 +82,7 @@ void stepper_tasks() {
       }
       if (current_position >= 100) {
         digitalWrite(STEP_PIN, LOW);
-        current_state = homing_3;
+        current_stepper_state = homing_3;
       }
       break;
 
@@ -98,7 +98,7 @@ void stepper_tasks() {
       if (digitalRead(END_PIN)) {
         digitalWrite(STEP_PIN, LOW);
         current_position = 0;
-        current_state = waiting;
+        current_stepper_state = waiting;
       }
       break;
 
@@ -115,7 +115,7 @@ void stepper_tasks() {
       else {
         move_has_coast = true;
       }
-      current_state = calculating;
+      current_stepper_state = calculating;
       break;
 
     case (calculating):
@@ -131,14 +131,14 @@ void stepper_tasks() {
         T_1 = -1.0*sqrt(2.0*(float)move_acceleration*((float)move_distance-(float)(move_position+1)))/((float)move_acceleration);
       }
       T = (T_1-T_0)*1000000.0; // step period [us]
-      current_state = step_high;
+      current_stepper_state = step_high;
       break;
 
     case (step_high):
       if (current_time - last_time > (int)(T / 2.0)) {
         digitalWrite(STEP_PIN, HIGH);
         delayMicroseconds(10);
-        current_state = step_low;
+        current_stepper_state = step_low;
       }
       break;
 
@@ -148,11 +148,11 @@ void stepper_tasks() {
         last_time = current_time;
         move_position++;
         if (move_position >= move_distance) {
-          current_state = waiting;
+          current_stepper_state = waiting;
           current_position += move_position*move_direction;
         }
         else {
-          current_state = calculating;
+          current_stepper_state = calculating;
         }
       }
       break;
@@ -170,9 +170,9 @@ void stepper_move(MOVE move) {
   }
   move_acceleration = move.acceleration;
   move_velocity = move.velocity;
-  current_state = starting;
+  current_stepper_state = starting;
 }
 
 bool stepper_move_complete() {
-  return (current_state == waiting);
+  return (current_stepper_state == waiting);
 }
