@@ -33,13 +33,6 @@ void serial_cmd_tasks() {
         case ('M'): // move command
           MOVE move;
           sscanf(command_string, "M %u %u %u", &move.position, &move.velocity, &move.acceleration);
-          Serial.print("\n");
-          Serial.print(move.position);
-          Serial.print("\n");
-          Serial.print(move.velocity);
-          Serial.print("\n");
-          Serial.print(move.acceleration);
-          Serial.print("\n");
           stepper_move(move);
           break;
       }
