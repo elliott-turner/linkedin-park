@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import tkinter as tk
 from tkinter import ttk
 import customtkinter as ctk
@@ -39,18 +40,80 @@ class App(ctk.CTk):
         self.editor_container.configure(xscrollcommand=self.scrollbar_editor.set)
         self.editor_container.pack(side='top', fill='both', expand=True, padx=5, pady=5)
         self.scrollbar_editor.pack(side='bottom', fill='x', padx=5, pady=5)
-        
+
+        self.editor = Editor(self.editor_canvas)
+
         ctk.CTkLabel(master=self.frame_right, text='Zoom:', width=30).grid(row=1, column=0, sticky='w', padx=20, pady=(0, 20))
-        self.zoom_minus_button = ctk.CTkButton(master=self.frame_right, text='-', width=30)
-        self.zoom_minus_button.grid(row=1, column=1, padx=10, pady=(0, 20), sticky='w')
-        self.zoom_plus_button = ctk.CTkButton(master=self.frame_right, text='+', width=30)
-        self.zoom_plus_button.grid(row=1, column=2, pady=(0, 20), sticky='w')
+        self.zoom_out_button = ctk.CTkButton(master=self.frame_right, text='-', width=30, command=self.zoom_out)
+        self.zoom_out_button.grid(row=1, column=1, padx=10, pady=(0, 20), sticky='w')
+        self.zoom_in_button = ctk.CTkButton(master=self.frame_right, text='+', width=30, command=self.zoom_in)
+        self.zoom_in_button.grid(row=1, column=2, pady=(0, 20), sticky='w')
         ctk.CTkLabel(master=self.frame_right, text='').grid(row=1, column=3, sticky='ew')
-        self.add_measure_button = ctk.CTkButton(master=self.frame_right, text='add 1 measure')
+        self.add_measure_button = ctk.CTkButton(master=self.frame_right, text='add 1 measure', command=self.editor.add_measure)
         self.add_measure_button.grid(row=1, column=4, padx=20, pady=(0, 20), sticky='e')
 
     def on_closing(self, event=0):
         self.destroy()
+
+    def zoom(self, dir):
+        self.editor.zoom(dir)
+        button = self.zoom_in_button if dir=='in' else self.zoom_out_button
+        button.configure(state='enabled' if self.editor.can_zoom(dir) else 'disabled')
+
+    def zoom_out(self):
+        self.zoom('out')
+
+    def zoom_in(self):
+        self.zoom('in')
+
+
+@dataclass
+class Note:
+    time: float
+    step: int
+
+
+class Editor:
+    HEIGHT = 400
+    ZOOM_MIN = 0.5
+    ZOOM_MAX = 1.5
+    ZOOM_STEP = 0.1
+
+    zoom = 1
+    canvas: ctk.CTkCanvas
+    notes: list[Note]
+
+    def __init__(self, canvas):
+        self.canvas = canvas
+        self.canvas.config(height=self.HEIGHT)
+        self.canvas.bind('<Button-1>', self.left_click_callback)
+        self.canvas.bind('<Button-2>', self.right_click_callback)
+        self.notes = []
+
+        self.draw()
+
+    def draw(self):
+        pass
+
+    def left_click_callback(self):
+        pass
+
+    def right_click_callback(self):
+        pass
+
+    def can_zoom(self, dir):
+        return False
+
+    def zoom(self, dir):
+        pass
+
+    def add_measure(self):
+        pass
+
+
+
+
+
 
 if __name__ == '__main__':
     app = App()
