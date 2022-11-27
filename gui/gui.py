@@ -1,5 +1,8 @@
 import math
+import time
 from dataclasses import dataclass
+import serial
+import yaml
 import tkinter as tk
 from tkinter import ttk
 import customtkinter as ctk
@@ -31,7 +34,7 @@ class App(ctk.CTk):
         self.frame_right.grid_rowconfigure(0, weight=1)
 
         self.frame_editor = ctk.CTkFrame(master=self.frame_right)
-        self.frame_editor.grid(row=0, column=0, columnspan=5, sticky='nsew', padx=20, pady=20)
+        self.frame_editor.grid(row=0, column=0, columnspan=6, sticky='nsew', padx=20, pady=20)
 
         self.editor_container = ctk.CTkCanvas(master=self.frame_editor, bg=self.frame_editor['background'], highlightthickness=0)
         self.scrollbar_editor = ctk.CTkScrollbar(master=self.frame_editor, orientation='horizontal', command=self.editor_container.xview)
@@ -50,8 +53,10 @@ class App(ctk.CTk):
         self.zoom_in_button = ctk.CTkButton(master=self.frame_right, text='+', width=30, command=self.zoom_in)
         self.zoom_in_button.grid(row=1, column=2, pady=(0, 20), sticky='w')
         ctk.CTkLabel(master=self.frame_right, text='').grid(row=1, column=3, sticky='ew')
+        self.play_button = ctk.CTkButton(master=self.frame_right, text='play', command=self.editor.play)
+        self.play_button.grid(row=1, column=4, padx=20, pady=(0, 20), sticky='e')
         self.add_measure_button = ctk.CTkButton(master=self.frame_right, text='add 1 measure', command=self.editor.add_measure)
-        self.add_measure_button.grid(row=1, column=4, padx=20, pady=(0, 20), sticky='e')
+        self.add_measure_button.grid(row=1, column=5, padx=20, pady=(0, 20), sticky='e')
 
     def on_closing(self, event=0):
         self.destroy()
@@ -121,6 +126,8 @@ class Editor:
         self.events = []
 
         self.song_duration = 1.0
+        
+        self.instrument = Instrument('COM5')
 
         self.draw()
     
@@ -187,8 +194,8 @@ class Editor:
         
         if len(self.events) == 0: return
 
-        previous_x = self.events[0].position
-        
+        previous_x = 0
+
         # draw trajectories
         for event in self.events:
             if type(event) is Trajectory:
@@ -225,15 +232,21 @@ class Editor:
 
     def update_events(self):
         notes = [n for n in filter(lambda f: type(f) == Note, self.events)]
-        if len(notes) <= 1: return
         notes.sort(key=lambda n: n.time)
         events = []
-        for note, next_note in zip(notes[:-1], notes[1:]):
-            events.append(note)
-            if note.position - next_note.position == 0: continue
-            v, a = self.__generate_trajectory(next_note.time - note.time - 0.01, abs(next_note.position - note.position))
-            events.append(Trajectory(note.time+0.005, next_note.position, int(v), int(a)))
-        events.append(next_note)
+        if len(notes) > 0 and notes[0].position != 0:
+            v, a = self.__generate_trajectory(notes[0].time - 0.05, notes[0].position)
+            events.append(Trajectory(0.025, notes[0].position, int(v), int(a)))
+        if len(notes) >= 1:
+            for note, next_note in zip(notes[:-1], notes[1:]):
+                events.append(note)
+                if note.position - next_note.position == 0: continue
+                v, a = self.__generate_trajectory(next_note.time - note.time - 0.05, abs(next_note.position - note.position))
+                events.append(Trajectory(note.time+0.025, next_note.position, int(v), int(a)))
+            events.append(next_note)
+        if len(notes) > 0:
+            v, a = self.__generate_trajectory(2, notes[-1].position)
+            events.append(Trajectory(notes[-1].time+0.025, 0, int(v), int(a)))
         self.events = events
 
     def left_click_callback(self, event):
@@ -267,6 +280,34 @@ class Editor:
     def add_measure(self):
         self.song_duration += 1
         self.draw()
+
+    def play(self):
+        if len(self.events) > 0 and type(self.events[0] is Trajectory):
+            self.instrument.move(self.events[0].position, self.events[0].velocity, self.events[0].acceleration)
+        last_time = 0.0
+        for event in self.events:
+            time.sleep(event.time - last_time)
+            last_time = event.time
+            if type(event) is Trajectory:
+                self.instrument.move(event.position, event.velocity, event.acceleration)
+            else:
+                self.instrument.pluck()
+
+
+
+class Instrument:
+    BAUD = 115200
+
+    def __init__(self, port):
+        self.ser = serial.Serial(port, Instrument.BAUD)
+        pass
+
+    def move(self, p, v, a):
+        self.ser.write(f'M {round(p)} {round(v)} {round(a)}\n'.encode('ASCII'))
+
+    def pluck(self):
+        self.ser.write(f'P\n'.encode('ASCII'))
+
 
 if __name__ == '__main__':
     app = App()
