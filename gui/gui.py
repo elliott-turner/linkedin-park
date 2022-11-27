@@ -220,6 +220,9 @@ class Editor:
                     last_t = t
                     t += 1
 
+            if type(event) is Note:
+                self.canvas.create_oval(20+event.time*self.current_zoom-4, 20+event.position*Editor.P_SCALE-4, 20+event.time*self.current_zoom+4, 20+event.position*Editor.P_SCALE+4)
+
     def update_events(self):
         notes = [n for n in filter(lambda f: type(f) == Note, self.events)]
         notes.sort(key=lambda n: n.time)
