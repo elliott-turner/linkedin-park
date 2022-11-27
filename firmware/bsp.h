@@ -6,9 +6,12 @@
 #define MS2_PIN 4
 #define MS3_PIN 0
 #define RST_PIN 2
-#define SLP_PIN 14
 #define STEP_PIN 12
 #define DIR_PIN 13
 #define END_PIN 15
+
+#define STOP_PIN 9
+
+#define SERVO_PIN 14
 
 #endif

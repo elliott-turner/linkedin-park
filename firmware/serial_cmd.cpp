@@ -35,6 +35,9 @@ void serial_cmd_tasks() {
           sscanf(command_string, "M %u %u %u", &move.position, &move.velocity, &move.acceleration);
           stepper_move(move);
           break;
+        case ('P'): // pluck command
+          servo_pluck();
+          break;
       }
       memset(command_string, 0x0, CMD_STR_SIZE);
       command_string_index = 0;

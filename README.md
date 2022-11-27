@@ -16,3 +16,8 @@ The move command moves the roller to the specified position (absolute) following
 | `position` | absolute position to move to [steps] |
 | `max_velocity` | maximum velocity [steps/s] |
 | `max_acceleration` | maximum acceleration [steps/s/s] |
+
+#### Pluck Command
+The pluck command moves the servo to pluck the string once. The servo alternates between two pre-defined angles such that moving from one angle to the other causes the plucker to pluck the string.
+
+`P\n`

@@ -30,7 +30,6 @@ void stepper_setup() {
   pinMode(MS2_PIN, OUTPUT);
   pinMode(MS3_PIN, OUTPUT);
   pinMode(RST_PIN, OUTPUT);
-  pinMode(SLP_PIN, OUTPUT);
   pinMode(STEP_PIN, OUTPUT);
   pinMode(DIR_PIN, OUTPUT);
   pinMode(END_PIN, INPUT_PULLDOWN_16);
@@ -42,9 +41,6 @@ void stepper_setup() {
 
   // enable
   digitalWrite(EN_PIN, LOW);
-
-  // no sleep
-  digitalWrite(SLP_PIN, HIGH);
 
   // no reset
   digitalWrite(RST_PIN, HIGH);
