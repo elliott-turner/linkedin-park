@@ -225,6 +225,7 @@ class Editor:
 
     def update_events(self):
         notes = [n for n in filter(lambda f: type(f) == Note, self.events)]
+        if len(notes) <= 1: return
         notes.sort(key=lambda n: n.time)
         events = []
         for note, next_note in zip(notes[:-1], notes[1:]):
@@ -244,7 +245,12 @@ class Editor:
         self.draw()
 
     def right_click_callback(self, event):
-        pass
+        if event.y > 20+Editor.P_HEIGHT or event.y < 20: return
+        if event.x < 20: return
+        closest_note = min(filter(lambda f: type(f) == Note, self.events), key=lambda x:math.sqrt(abs(x.position*self.P_SCALE+20-event.y)**2+abs(x.time*self.current_zoom+20-event.x)**2))
+        self.events.remove(closest_note)
+        self.update_events()
+        self.draw()
 
     def can_zoom(self, dir):
         if dir == 'in':
