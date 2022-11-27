@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass
 import tkinter as tk
 from tkinter import ttk
@@ -58,7 +59,6 @@ class App(ctk.CTk):
     def zoom(self, dir):
         self.editor.zoom(dir)
         button = self.zoom_in_button if dir=='in' else self.zoom_out_button
-        button.configure(state='enabled' if self.editor.can_zoom(dir) else 'disabled')
 
     def zoom_out(self):
         self.zoom('out')
@@ -66,54 +66,197 @@ class App(ctk.CTk):
     def zoom_in(self):
         self.zoom('in')
 
+NOTES = {
+    1: 4000,
+    2: 3640,
+    3: 3220,
+    4: 2800,
+    5: 2450,
+    6: 2160,
+    7: 1820,
+    8: 1480,
+    9: 1140,
+    10: 830,
+    11: 330,
+    12: 80,
+}
 
 @dataclass
 class Note:
     time: float
-    step: int
+    position: int
 
+@dataclass
+class Trajectory:
+    time: float
+    position: int
+    velocity: int
+    acceleration: int
+
+    def duration(self, last_position):
+        return (abs(self.position-last_position)+self.velocity**2/self.acceleration)/self.velocity
 
 class Editor:
     HEIGHT = 400
-    ZOOM_MIN = 0.5
-    ZOOM_MAX = 1.5
-    ZOOM_STEP = 0.1
+    ZOOM_MIN = 100.0
+    ZOOM_MAX = 1000.0
+    ZOOM_STEP = 100.0
 
-    zoom = 1
+    P_HEIGHT = 120.0
+    P_SCALE = 120.0/4000.0
+    V_HEIGHT = 80.0
+    V_SCALE = 0.01
+    A_HEIGHT = 80.0
+    A_SCALE = 0.0005
+
+    current_zoom = 100.0
     canvas: ctk.CTkCanvas
-    notes: list[Note]
+    events: list[Note | Trajectory]
 
     def __init__(self, canvas):
         self.canvas = canvas
         self.canvas.config(height=self.HEIGHT)
         self.canvas.bind('<Button-1>', self.left_click_callback)
-        self.canvas.bind('<Button-2>', self.right_click_callback)
-        self.notes = []
+        self.canvas.bind('<Button-3>', self.right_click_callback)
+        self.events = []
+
+        self.song_duration = 1.0
 
         self.draw()
+    
+    def __draw_axes(self, x, y, h, w, zero=1.0):
+        self.canvas.create_line(x, y, x, y+h)
+        self.canvas.create_line(x, y+zero*h, x+w, y+zero*h)
+
+    def __generate_trajectory(self, t_f, x_f):
+        # first try minimum acceleration
+        v_m = 2.0*x_f/t_f
+        a_m = 2.0*v_m/t_f
+        if v_m > 100000.0:
+            v_m = 100000.0
+            a_m = v_m**2/(x_f-t_f*v_m)
+        return (v_m, a_m)
+
+    def __evaluate_trajectory(self, num_points, t_f, x_f, v_m, a_m):
+        x_vals = []
+        v_vals = []
+        a_vals = []
+
+        t_a = v_m/a_m
+        time_step = t_f/num_points
+        t = 0.0
+
+        while t < t_a:
+            x_vals.append(0.5*a_m*t**2)
+            v_vals.append(a_m*t)
+            a_vals.append(a_m)
+            t += time_step
+        while t < t_f - t_a:
+            x_vals.append(0.5*a_m*t_a**2+v_m*(t-t_a))
+            v_vals.append(v_m)
+            a_vals.append(0)
+            t += time_step
+        while t < t_f:
+            x_vals.append(0.5*a_m*t_a**2+v_m*(t_f-2*t_a)+v_m*(t-t_f+t_a)-0.5*a_m*(t-t_f+t_a)**2)
+            v_vals.append(v_m-a_m*(t-t_f+t_a))
+            a_vals.append(-a_m)
+            t += time_step
+        
+        return (x_vals, v_vals, a_vals)
 
     def draw(self):
-        pass
+        self.canvas.delete('all')
 
-    def left_click_callback(self):
-        pass
+        if len(self.events) > 0:
+            if self.events[-1].time > self.song_duration: song_duration = self.events[-1].time
+        song_duration = self.song_duration
+        self.canvas.config(width=song_duration*self.current_zoom+50)
 
-    def right_click_callback(self):
+        # "constants"
+        WIDTH=song_duration*self.current_zoom
+
+        
+        # draw graph axes
+        self.__draw_axes(20, 20, Editor.P_HEIGHT, WIDTH)
+        self.__draw_axes(20, 40+Editor.P_HEIGHT, Editor.V_HEIGHT, WIDTH, zero=0.5)
+        self.__draw_axes(20, 60+Editor.P_HEIGHT+Editor.V_HEIGHT, Editor.A_HEIGHT, WIDTH, zero=0.5)
+
+        # draw note reference lines
+        for n in NOTES:
+            self.canvas.create_line(20, 20+NOTES[n]*Editor.P_SCALE, WIDTH, 20+NOTES[n]*Editor.P_SCALE)
+        
+        if len(self.events) == 0: return
+
+        previous_x = self.events[0].position
+        
+        # draw trajectories
+        for event in self.events:
+            if type(event) is Trajectory:
+                x_vals, v_vals, a_vals = self.__evaluate_trajectory(event.duration(previous_x)*self.current_zoom, event.duration(previous_x), abs(event.position-previous_x), event.velocity, event.acceleration)
+                sign = 1 if event.position >= previous_x else -1
+                x_vals = [previous_x+sign*x for x in x_vals]
+                v_vals = [sign*v for v in v_vals]
+                a_vals = [sign*a for a in a_vals]
+
+                last_t = event.time*self.current_zoom
+                t = last_t
+                for last_x, x in zip([previous_x] + x_vals, x_vals + [event.position]):
+                    self.canvas.create_line(20+last_t, 20+last_x*Editor.P_SCALE, 20+t, 20+x*Editor.P_SCALE)
+                    last_t = t
+                    t += 1
+                previous_x = event.position
+
+                last_t = event.time*self.current_zoom
+                t = last_t
+                for last_v, v in zip([0] + v_vals, v_vals + [0]):
+                    self.canvas.create_line(20+last_t, 40+Editor.P_HEIGHT+Editor.V_HEIGHT/2+last_v*Editor.V_SCALE, 20+t, 40+Editor.P_HEIGHT+Editor.V_HEIGHT/2+v*Editor.V_SCALE)
+                    last_t = t
+                    t += 1
+
+                last_t = event.time*self.current_zoom
+                t = last_t
+                for last_a, a in zip([0] + a_vals, a_vals + [0]):
+                    self.canvas.create_line(20+last_t, 60+Editor.P_HEIGHT+Editor.V_HEIGHT+Editor.A_HEIGHT/2+last_a*Editor.A_SCALE, 20+t, 60+Editor.P_HEIGHT+Editor.V_HEIGHT+Editor.A_HEIGHT/2+a*Editor.A_SCALE)
+                    last_t = t
+                    t += 1
+
+    def update_events(self):
+        notes = [n for n in filter(lambda f: type(f) == Note, self.events)]
+        notes.sort(key=lambda n: n.time)
+        print(notes)
+        events = []
+        for note, next_note in zip(notes[:-1], notes[1:]):
+            v, a = self.__generate_trajectory(next_note.time - note.time - 0.01, abs(next_note.position - note.position))
+            events.append(note)
+            events.append(Trajectory(note.time+0.005, next_note.position, int(v), int(a)))
+        events.append(next_note)
+        self.events = events
+
+    def left_click_callback(self, event):
+        if event.y > 20+Editor.P_HEIGHT or event.y < 20: return
+        if event.x < 20: return
+        self.events.append(Note((event.x-20)/self.current_zoom, (event.y-20)/self.P_SCALE))
+        self.update_events()
+        self.draw()
+
+    def right_click_callback(self, event):
         pass
 
     def can_zoom(self, dir):
-        return False
+        if dir == 'in':
+            return self.current_zoom + Editor.ZOOM_STEP <= Editor.ZOOM_MIN
+        return self.current_zoom - Editor.ZOOM_STEP >= Editor.ZOOM_MAX
 
     def zoom(self, dir):
-        pass
+        if dir == 'in': self.current_zoom += Editor.ZOOM_STEP
+        else: self.current_zoom -= Editor.ZOOM_STEP
+        if self.current_zoom < Editor.ZOOM_MIN: self.current_zoom = Editor.ZOOM_MIN
+        if self.current_zoom > Editor.ZOOM_MAX: self.current_zoom = Editor.ZOOM_MAX
+        self.draw()
 
     def add_measure(self):
-        pass
-
-
-
-
-
+        self.song_duration += 1
+        self.draw()
 
 if __name__ == '__main__':
     app = App()
