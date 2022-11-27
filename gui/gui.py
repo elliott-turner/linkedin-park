@@ -203,10 +203,9 @@ class Editor:
 
     def draw(self):
         self.canvas.delete('all')
-
+        song_duration = self.song_duration
         if len(self.events) > 0:
             if self.events[-1].time > self.song_duration: song_duration = self.events[-1].time
-        song_duration = self.song_duration
         self.canvas.config(width=song_duration*self.current_zoom+50)
 
         # "constants"
