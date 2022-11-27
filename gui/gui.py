@@ -6,6 +6,7 @@ import yaml
 import tkinter as tk
 from tkinter import ttk
 import customtkinter as ctk
+from tkinter import filedialog as fd
 
 ctk.set_appearance_mode('System')
 ctk.set_default_color_theme('blue')
@@ -21,20 +22,11 @@ class App(ctk.CTk):
         self.geometry(f'{App.WIDTH}x{App.HEIGHT}')
         self.protocol('WM_DELETE_WINDOW', self.on_closing)
 
-        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(4, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.frame_left = ctk.CTkFrame(master=self, width=180, corner_radius=0)
-        self.frame_left.grid(row=0, column=0, sticky='nsew')
-
-        self.frame_right = ctk.CTkFrame(master=self)
-        self.frame_right.grid(row=0, column=1, sticky='nsew', padx=20, pady=20)
-
-        self.frame_right.grid_columnconfigure(4, weight=1)
-        self.frame_right.grid_rowconfigure(0, weight=1)
-
-        self.frame_editor = ctk.CTkFrame(master=self.frame_right)
-        self.frame_editor.grid(row=0, column=0, columnspan=13, sticky='nsew', padx=20, pady=20)
+        self.frame_editor = ctk.CTkFrame(master=self)
+        self.frame_editor.grid(row=0, column=0, columnspan=15, sticky='nsew', padx=20, pady=20)
 
         self.editor_container = ctk.CTkCanvas(master=self.frame_editor, bg=self.frame_editor['background'], highlightthickness=0)
         self.scrollbar_editor = ctk.CTkScrollbar(master=self.frame_editor, orientation='horizontal', command=self.editor_container.xview)
@@ -47,30 +39,34 @@ class App(ctk.CTk):
 
         self.editor = Editor(self.editor_canvas)
 
-        ctk.CTkLabel(master=self.frame_right, text='zoom:', width=20).grid(row=1, column=0, sticky='w', padx=20, pady=(0, 20))
-        self.zoom_out_button = ctk.CTkButton(master=self.frame_right, text='-', width=30, command=self.zoom_out)
+        ctk.CTkLabel(master=self, text='zoom:', width=20).grid(row=1, column=0, sticky='w', padx=20, pady=(0, 20))
+        self.zoom_out_button = ctk.CTkButton(master=self, text='-', width=30, command=self.zoom_out)
         self.zoom_out_button.grid(row=1, column=1, pady=(0, 20), sticky='w')
-        self.zoom_in_button = ctk.CTkButton(master=self.frame_right, text='+', width=30, command=self.zoom_in)
+        self.zoom_in_button = ctk.CTkButton(master=self, text='+', width=30, command=self.zoom_in)
         self.zoom_in_button.grid(row=1, column=2, padx=20, pady=(0, 20), sticky='w')
-        ctk.CTkLabel(master=self.frame_right, text='', width=10).grid(row=1, column=3, sticky='ew')
-        ctk.CTkLabel(master=self.frame_right, text='time signature:', width=120).grid(row=1, column=4, pady=(0, 20), sticky='e')
-        self.time_signature_entry_1 = ctk.CTkEntry(master=self.frame_right, width=30)
+        self.load_button = ctk.CTkButton(master=self, text='load', width=50, command=self.load)
+        self.load_button.grid(row=1, column=3, pady=(0, 20), sticky='w')
+        self.save_button = ctk.CTkButton(master=self, text='save', width=50, command=self.save)
+        self.save_button.grid(row=1, column=4, padx=20, pady=(0, 20), sticky='w')
+        ctk.CTkLabel(master=self, text='', width=10).grid(row=1, column=5, sticky='ew')
+        ctk.CTkLabel(master=self, text='time signature:', width=120).grid(row=1, column=6, pady=(0, 20), sticky='e')
+        self.time_signature_entry_1 = ctk.CTkEntry(master=self, width=30)
         self.time_signature_entry_1.insert(0, '4')
-        self.time_signature_entry_1.grid(row=1, column=5, pady=(0, 20), sticky='e')
-        ctk.CTkLabel(master=self.frame_right, text='/', width=30).grid(row=1, column=6, pady=(0, 20), sticky='e')
-        self.time_signature_entry_2 = ctk.CTkEntry(master=self.frame_right, width=30)
+        self.time_signature_entry_1.grid(row=1, column=7, pady=(0, 20), sticky='e')
+        ctk.CTkLabel(master=self, text='/', width=30).grid(row=1, column=8, pady=(0, 20), sticky='e')
+        self.time_signature_entry_2 = ctk.CTkEntry(master=self, width=30)
         self.time_signature_entry_2.insert(0, '4')
-        self.time_signature_entry_2.grid(row=1, column=7, pady=(0, 20), sticky='e')
-        ctk.CTkLabel(master=self.frame_right, text='tempo:', width=80).grid(row=1, column=8, pady=(0, 20), sticky='e')
-        self.tempo_entry = ctk.CTkEntry(master=self.frame_right, width=40)
+        self.time_signature_entry_2.grid(row=1, column=9, pady=(0, 20), sticky='e')
+        ctk.CTkLabel(master=self, text='tempo:', width=80).grid(row=1, column=10, pady=(0, 20), sticky='e')
+        self.tempo_entry = ctk.CTkEntry(master=self, width=40)
         self.tempo_entry.insert(0, '120')
-        self.tempo_entry.grid(row=1, column=9, pady=(0, 20), sticky='e')
-        self.set_button = ctk.CTkButton(master=self.frame_right, text='set', width=40, command=self.set_timing)
-        self.set_button.grid(row=1, column=10, padx=20, pady=(0, 20), sticky='e')
-        self.add_measure_button = ctk.CTkButton(master=self.frame_right, text='add measure', width=60, command=self.editor.add_measure)
-        self.add_measure_button.grid(row=1, column=11, pady=(0, 20), sticky='e')
-        self.play_button = ctk.CTkButton(master=self.frame_right, text='play', width=40, command=self.editor.play)
-        self.play_button.grid(row=1, column=12, padx=20, pady=(0, 20), sticky='e')
+        self.tempo_entry.grid(row=1, column=11, pady=(0, 20), sticky='e')
+        self.set_button = ctk.CTkButton(master=self, text='set', width=40, command=self.set_timing)
+        self.set_button.grid(row=1, column=12, padx=20, pady=(0, 20), sticky='e')
+        self.add_measure_button = ctk.CTkButton(master=self, text='add measure', width=60, command=self.editor.add_measure)
+        self.add_measure_button.grid(row=1, column=13, pady=(0, 20), sticky='e')
+        self.play_button = ctk.CTkButton(master=self, text='play', width=40, command=self.editor.play)
+        self.play_button.grid(row=1, column=14, padx=20, pady=(0, 20), sticky='e')
 
         self.set_timing()
 
@@ -92,21 +88,29 @@ class App(ctk.CTk):
             self.editor.set_timing(int(self.time_signature_entry_1.get()), int(self.time_signature_entry_2.get()), int(self.tempo_entry.get()))
         except Exception as e:
             print(str(e))
+    
+    def load(self):
+        filename = fd.askopenfilename()
+        self.editor.load(filename)
+
+    def save(self):
+        filename = fd.askopenfilename()
+        self.editor.save(filename)
 
 NOTES = {
-    1: 4000,
-    2: 3640,
-    3: 3220,
-    4: 2800,
-    5: 2450,
-    6: 2160,
+    1: 80,
+    2: 330,
+    3: 590,
+    4: 830,
+    5: 1140,
+    6: 1480,
     7: 1820,
-    8: 1480,
-    9: 1140,
-    10: 830,
-    11: 590,
-    12: 330,
-    13: 80,
+    8: 2160,
+    9: 2450,
+    10: 2800,
+    11: 3220,
+    12: 3640,
+    13: 4000,
 }
 
 @dataclass
@@ -130,11 +134,11 @@ class Editor:
     ZOOM_MAX = 1000.0
     ZOOM_STEP = 100.0
 
-    P_HEIGHT = 120.0
-    P_SCALE = 120.0/4000.0
-    V_HEIGHT = 80.0
+    P_HEIGHT = 150.0
+    P_SCALE = 150.0/4000.0
+    V_HEIGHT = 100.0
     V_SCALE = 0.01
-    A_HEIGHT = 80.0
+    A_HEIGHT = 100.0
     A_SCALE = 0.0005
 
     current_zoom = 100.0
@@ -194,7 +198,7 @@ class Editor:
             v_vals.append(v_m-a_m*(t-t_f+t_a))
             a_vals.append(-a_m)
             t += time_step
-        
+
         return (x_vals, v_vals, a_vals)
 
     def draw(self):
@@ -208,7 +212,6 @@ class Editor:
         # "constants"
         WIDTH=song_duration*self.current_zoom
 
-        
         # draw graph axes
         self.__draw_axes(20, 20, Editor.P_HEIGHT, WIDTH)
         self.__draw_axes(20, 40+Editor.P_HEIGHT, Editor.V_HEIGHT, WIDTH, zero=0.5)
@@ -224,13 +227,12 @@ class Editor:
         i = 0
         while t < song_duration:
             if i%self.ts1 == 0:
-                print(i)
                 self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT)
             else:
                 self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT)
             t += beat_duration
             i += 1
-        
+
         if len(self.events) == 0: return
 
         previous_x = 0
@@ -341,6 +343,46 @@ class Editor:
             else:
                 self.instrument.pluck()
 
+    def save(self, filename):
+        try:
+            data = {
+                'ts1': self.ts1,
+                'ts2': self.ts2,
+                'tempo': self.tempo,
+            }
+            notes = []
+            for note in filter(lambda e: type(e) is Note, self.events):
+                n = 0
+                for N in NOTES:
+                    if NOTES[N] == note.position:
+                        n = N
+                        break
+                notes.append([note.time, n])
+            data.update({'notes': notes})
+            
+            with open(filename, 'w+') as f:
+                yaml.dump(data, f)
+
+        except Exception as e:
+            print(str(e))
+
+    def load(self, filename):
+        try:
+            data = {}
+            with open(filename, 'r') as f:
+                data = yaml.load(f, Loader=yaml.FullLoader)
+            self.ts1 = data['ts1']
+            self.ts2 = data['ts2']
+            self.temp = data['tempo']
+            notes = data['notes']
+            events = []
+            for note in notes:
+                events.append(Note(note[0], NOTES[note[1]]))
+            self.events = events
+        except Exception as e:
+            print(str(e))
+        self.update_events()
+        self.draw()
 
 
 class Instrument:
