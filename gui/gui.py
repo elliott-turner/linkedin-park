@@ -228,8 +228,9 @@ class Editor:
         notes.sort(key=lambda n: n.time)
         events = []
         for note, next_note in zip(notes[:-1], notes[1:]):
-            v, a = self.__generate_trajectory(next_note.time - note.time - 0.01, abs(next_note.position - note.position))
             events.append(note)
+            if note.position - next_note.position == 0: continue
+            v, a = self.__generate_trajectory(next_note.time - note.time - 0.01, abs(next_note.position - note.position))
             events.append(Trajectory(note.time+0.005, next_note.position, int(v), int(a)))
         events.append(next_note)
         self.events = events
@@ -237,7 +238,8 @@ class Editor:
     def left_click_callback(self, event):
         if event.y > 20+Editor.P_HEIGHT or event.y < 20: return
         if event.x < 20: return
-        self.events.append(Note((event.x-20)/self.current_zoom, (event.y-20)/self.P_SCALE))
+        y = min([NOTES[i]*self.P_SCALE+20 for i in NOTES], key=lambda x:abs(x-event.y))
+        self.events.append(Note((event.x-20)/self.current_zoom, (y-20)/self.P_SCALE))
         self.update_events()
         self.draw()
 
