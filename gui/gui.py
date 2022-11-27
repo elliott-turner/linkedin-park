@@ -11,8 +11,8 @@ ctk.set_appearance_mode('System')
 ctk.set_default_color_theme('blue')
 
 class App(ctk.CTk):
-    WIDTH = 780
-    HEIGHT = 520
+    WIDTH = 1000
+    HEIGHT = 550
 
     def __init__(self):
         super().__init__()
@@ -34,7 +34,7 @@ class App(ctk.CTk):
         self.frame_right.grid_rowconfigure(0, weight=1)
 
         self.frame_editor = ctk.CTkFrame(master=self.frame_right)
-        self.frame_editor.grid(row=0, column=0, columnspan=6, sticky='nsew', padx=20, pady=20)
+        self.frame_editor.grid(row=0, column=0, columnspan=13, sticky='nsew', padx=20, pady=20)
 
         self.editor_container = ctk.CTkCanvas(master=self.frame_editor, bg=self.frame_editor['background'], highlightthickness=0)
         self.scrollbar_editor = ctk.CTkScrollbar(master=self.frame_editor, orientation='horizontal', command=self.editor_container.xview)
@@ -47,16 +47,32 @@ class App(ctk.CTk):
 
         self.editor = Editor(self.editor_canvas)
 
-        ctk.CTkLabel(master=self.frame_right, text='Zoom:', width=30).grid(row=1, column=0, sticky='w', padx=20, pady=(0, 20))
+        ctk.CTkLabel(master=self.frame_right, text='zoom:', width=20).grid(row=1, column=0, sticky='w', padx=20, pady=(0, 20))
         self.zoom_out_button = ctk.CTkButton(master=self.frame_right, text='-', width=30, command=self.zoom_out)
-        self.zoom_out_button.grid(row=1, column=1, padx=10, pady=(0, 20), sticky='w')
+        self.zoom_out_button.grid(row=1, column=1, pady=(0, 20), sticky='w')
         self.zoom_in_button = ctk.CTkButton(master=self.frame_right, text='+', width=30, command=self.zoom_in)
-        self.zoom_in_button.grid(row=1, column=2, pady=(0, 20), sticky='w')
-        ctk.CTkLabel(master=self.frame_right, text='').grid(row=1, column=3, sticky='ew')
-        self.play_button = ctk.CTkButton(master=self.frame_right, text='play', command=self.editor.play)
-        self.play_button.grid(row=1, column=4, padx=20, pady=(0, 20), sticky='e')
-        self.add_measure_button = ctk.CTkButton(master=self.frame_right, text='add 1 measure', command=self.editor.add_measure)
-        self.add_measure_button.grid(row=1, column=5, padx=20, pady=(0, 20), sticky='e')
+        self.zoom_in_button.grid(row=1, column=2, padx=20, pady=(0, 20), sticky='w')
+        ctk.CTkLabel(master=self.frame_right, text='', width=10).grid(row=1, column=3, sticky='ew')
+        ctk.CTkLabel(master=self.frame_right, text='time signature:', width=120).grid(row=1, column=4, pady=(0, 20), sticky='e')
+        self.time_signature_entry_1 = ctk.CTkEntry(master=self.frame_right, width=30)
+        self.time_signature_entry_1.insert(0, '4')
+        self.time_signature_entry_1.grid(row=1, column=5, pady=(0, 20), sticky='e')
+        ctk.CTkLabel(master=self.frame_right, text='/', width=30).grid(row=1, column=6, pady=(0, 20), sticky='e')
+        self.time_signature_entry_2 = ctk.CTkEntry(master=self.frame_right, width=30)
+        self.time_signature_entry_2.insert(0, '4')
+        self.time_signature_entry_2.grid(row=1, column=7, pady=(0, 20), sticky='e')
+        ctk.CTkLabel(master=self.frame_right, text='tempo:', width=80).grid(row=1, column=8, pady=(0, 20), sticky='e')
+        self.tempo_entry = ctk.CTkEntry(master=self.frame_right, width=40)
+        self.tempo_entry.insert(0, '120')
+        self.tempo_entry.grid(row=1, column=9, pady=(0, 20), sticky='e')
+        self.set_button = ctk.CTkButton(master=self.frame_right, text='set', width=40, command=self.set_timing)
+        self.set_button.grid(row=1, column=10, padx=20, pady=(0, 20), sticky='e')
+        self.add_measure_button = ctk.CTkButton(master=self.frame_right, text='add measure', width=60, command=self.editor.add_measure)
+        self.add_measure_button.grid(row=1, column=11, pady=(0, 20), sticky='e')
+        self.play_button = ctk.CTkButton(master=self.frame_right, text='play', width=40, command=self.editor.play)
+        self.play_button.grid(row=1, column=12, padx=20, pady=(0, 20), sticky='e')
+
+        self.set_timing()
 
     def on_closing(self, event=0):
         self.destroy()
@@ -70,6 +86,12 @@ class App(ctk.CTk):
 
     def zoom_in(self):
         self.zoom('in')
+    
+    def set_timing(self):
+        try:
+            self.editor.set_timing(int(self.time_signature_entry_1.get()), int(self.time_signature_entry_2.get()), int(self.tempo_entry.get()))
+        except Exception as e:
+            print(str(e))
 
 NOTES = {
     1: 4000,
@@ -119,15 +141,18 @@ class Editor:
     canvas: ctk.CTkCanvas
     events: list[Note | Trajectory]
 
+    ts1 = 4
+    ts2 = 4
+    tempo = 120
+
     def __init__(self, canvas):
         self.canvas = canvas
         self.canvas.config(height=self.HEIGHT)
         self.canvas.bind('<Button-1>', self.left_click_callback)
         self.canvas.bind('<Button-3>', self.right_click_callback)
         self.events = []
-
-        self.song_duration = 1.0
         
+        self.song_duration = self.ts1*60/self.tempo
         self.instrument = Instrument('COM5')
 
         self.draw()
@@ -191,7 +216,20 @@ class Editor:
 
         # draw note reference lines
         for n in NOTES:
-            self.canvas.create_line(20, 20+NOTES[n]*Editor.P_SCALE, WIDTH, 20+NOTES[n]*Editor.P_SCALE)
+            self.canvas.create_line(20, 20+NOTES[n]*Editor.P_SCALE, WIDTH+20, 20+NOTES[n]*Editor.P_SCALE)
+        
+        # draw timing reference lines
+        beat_duration = self.ts1*60/self.tempo/self.ts2
+        t = 0
+        i = 0
+        while t < song_duration:
+            if i%self.ts1 == 0:
+                print(i)
+                self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT)
+            else:
+                self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT)
+            t += beat_duration
+            i += 1
         
         if len(self.events) == 0: return
 
@@ -277,9 +315,18 @@ class Editor:
         if self.current_zoom < Editor.ZOOM_MIN: self.current_zoom = Editor.ZOOM_MIN
         if self.current_zoom > Editor.ZOOM_MAX: self.current_zoom = Editor.ZOOM_MAX
         self.draw()
+    
+    def set_timing(self, ts1, ts2, tempo):
+        for event in self.events:
+            event.time *= self.tempo/tempo
+        self.tempo = tempo
+        self.ts1 = ts1
+        self.ts2 = ts2
+        self.update_events()
+        self.draw()
 
     def add_measure(self):
-        self.song_duration += 1
+        self.song_duration += self.ts1*60/self.tempo
         self.draw()
 
     def play(self):
