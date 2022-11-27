@@ -137,7 +137,7 @@ class Editor:
     P_HEIGHT = 150.0
     P_SCALE = 150.0/4000.0
     V_HEIGHT = 100.0
-    V_SCALE = 0.01
+    V_SCALE = 0.005
     A_HEIGHT = 100.0
     A_SCALE = 0.0005
 
@@ -162,8 +162,9 @@ class Editor:
         self.draw()
     
     def __draw_axes(self, x, y, h, w, zero=1.0):
-        self.canvas.create_line(x, y, x, y+h)
-        self.canvas.create_line(x, y+zero*h, x+w, y+zero*h)
+        t = 4
+        self.canvas.create_line(x, y-t/2, x, y+h+t/2, fill='#C0C0C0', width=4)
+        self.canvas.create_line(x-t/2, y+zero*h, x+w+t/2, y+zero*h, fill='#C0C0C0', width=4)
 
     def __generate_trajectory(self, t_f, x_f):
         # first try minimum acceleration
@@ -211,26 +212,28 @@ class Editor:
         # "constants"
         WIDTH=song_duration*self.current_zoom
 
-        # draw graph axes
-        self.__draw_axes(20, 20, Editor.P_HEIGHT, WIDTH)
-        self.__draw_axes(20, 40+Editor.P_HEIGHT, Editor.V_HEIGHT, WIDTH, zero=0.5)
-        self.__draw_axes(20, 60+Editor.P_HEIGHT+Editor.V_HEIGHT, Editor.A_HEIGHT, WIDTH, zero=0.5)
-
         # draw note reference lines
         for n in NOTES:
-            self.canvas.create_line(20, 20+NOTES[n]*Editor.P_SCALE, WIDTH+20, 20+NOTES[n]*Editor.P_SCALE)
+            self.canvas.create_line(20, 20+NOTES[n]*Editor.P_SCALE, WIDTH+20, 20+NOTES[n]*Editor.P_SCALE, fill='#808080')
         
         # draw timing reference lines
-        beat_duration = self.ts1*60/self.tempo/self.ts2
+        beat_duration = self.ts1*60/self.tempo/self.ts2/2
         t = 0
         i = 0
         while t < song_duration:
-            if i%self.ts1 == 0:
-                self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT)
+            if i%self.ts1*2 == 0:
+                self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT, fill='#C0C0C0')
+            elif i%2 == 0:
+                self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT, fill='#606060')
             else:
-                self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT)
+                self.canvas.create_line(20+t*self.current_zoom, 20, 20+t*self.current_zoom, 20+self.P_HEIGHT, fill='#404040')
             t += beat_duration
             i += 1
+
+        # draw graph axes
+        self.__draw_axes(20, 20, Editor.P_HEIGHT, WIDTH, zero =0.0)
+        self.__draw_axes(20, 40+Editor.P_HEIGHT, Editor.V_HEIGHT, WIDTH, zero=0.5)
+        self.__draw_axes(20, 60+Editor.P_HEIGHT+Editor.V_HEIGHT, Editor.A_HEIGHT, WIDTH, zero=0.5)
 
         if len(self.events) == 0: return
 
@@ -248,7 +251,7 @@ class Editor:
                 last_t = event.time*self.current_zoom
                 t = last_t
                 for last_x, x in zip([previous_x] + x_vals, x_vals + [event.position]):
-                    self.canvas.create_line(20+last_t, 20+last_x*Editor.P_SCALE, 20+t, 20+x*Editor.P_SCALE)
+                    self.canvas.create_line(20+last_t, 20+last_x*Editor.P_SCALE, 20+t, 20+x*Editor.P_SCALE, fill='blue', width=2)
                     last_t = t
                     t += 1
                 previous_x = event.position
@@ -256,19 +259,20 @@ class Editor:
                 last_t = event.time*self.current_zoom
                 t = last_t
                 for last_v, v in zip([0] + v_vals, v_vals + [0]):
-                    self.canvas.create_line(20+last_t, 40+Editor.P_HEIGHT+Editor.V_HEIGHT/2+last_v*Editor.V_SCALE, 20+t, 40+Editor.P_HEIGHT+Editor.V_HEIGHT/2+v*Editor.V_SCALE)
+                    self.canvas.create_line(20+last_t, 40+Editor.P_HEIGHT+Editor.V_HEIGHT/2+last_v*Editor.V_SCALE, 20+t, 40+Editor.P_HEIGHT+Editor.V_HEIGHT/2+v*Editor.V_SCALE, fill='green', width=2)
                     last_t = t
                     t += 1
 
                 last_t = event.time*self.current_zoom
                 t = last_t
                 for last_a, a in zip([0] + a_vals, a_vals + [0]):
-                    self.canvas.create_line(20+last_t, 60+Editor.P_HEIGHT+Editor.V_HEIGHT+Editor.A_HEIGHT/2+last_a*Editor.A_SCALE, 20+t, 60+Editor.P_HEIGHT+Editor.V_HEIGHT+Editor.A_HEIGHT/2+a*Editor.A_SCALE)
+                    self.canvas.create_line(20+last_t, 60+Editor.P_HEIGHT+Editor.V_HEIGHT+Editor.A_HEIGHT/2+last_a*Editor.A_SCALE, 20+t, 60+Editor.P_HEIGHT+Editor.V_HEIGHT+Editor.A_HEIGHT/2+a*Editor.A_SCALE, fill='yellow', width=2)
                     last_t = t
                     t += 1
 
+        for event in self.events:
             if type(event) is Note:
-                self.canvas.create_oval(20+event.time*self.current_zoom-4, 20+event.position*Editor.P_SCALE-4, 20+event.time*self.current_zoom+4, 20+event.position*Editor.P_SCALE+4)
+                self.canvas.create_oval(20+event.time*self.current_zoom-4, 20+event.position*Editor.P_SCALE-4, 20+event.time*self.current_zoom+4, 20+event.position*Editor.P_SCALE+4, fill='#E0E0E0')
 
     def update_events(self):
         notes = [n for n in filter(lambda f: type(f) == Note, self.events)]
