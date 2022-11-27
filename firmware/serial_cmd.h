@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "stepper.h"
+#include "servo.h"
 
 #define CMD_STR_SIZE 64
 

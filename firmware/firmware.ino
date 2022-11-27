@@ -1,9 +1,10 @@
 #include "stepper.h"
+#include "servo.h"
 #include "serial_cmd.h"
-#include "bsp.h"
 
 void setup() {
   stepper_setup();
+  servo_setup();
   serial_cmd_setup();
 }
 
