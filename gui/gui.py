@@ -223,7 +223,6 @@ class Editor:
     def update_events(self):
         notes = [n for n in filter(lambda f: type(f) == Note, self.events)]
         notes.sort(key=lambda n: n.time)
-        print(notes)
         events = []
         for note, next_note in zip(notes[:-1], notes[1:]):
             v, a = self.__generate_trajectory(next_note.time - note.time - 0.01, abs(next_note.position - note.position))
