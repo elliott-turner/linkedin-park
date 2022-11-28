@@ -153,11 +153,12 @@ class Editor:
         self.canvas = canvas
         self.canvas.config(height=self.HEIGHT)
         self.canvas.bind('<Button-1>', self.left_click_callback)
+        self.canvas.bind('<Button-2>', self.right_click_callback) # mac trackpad right click
         self.canvas.bind('<Button-3>', self.right_click_callback)
         self.events = []
         
         self.song_duration = self.ts1*60/self.tempo
-        self.instrument = Instrument('COM5')
+        self.instrument = Instrument('/dev/cu.usbserial-145130')
 
         self.draw()
     
