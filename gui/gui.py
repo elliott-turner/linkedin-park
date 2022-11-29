@@ -13,7 +13,7 @@ ctk.set_default_color_theme('blue')
 
 class App(ctk.CTk):
     WIDTH = 1000
-    HEIGHT = 550
+    HEIGHT = 600
 
     def __init__(self):
         super().__init__()
@@ -26,7 +26,7 @@ class App(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         self.frame_editor = ctk.CTkFrame(master=self)
-        self.frame_editor.grid(row=0, column=0, columnspan=15, sticky='nsew', padx=20, pady=20)
+        self.frame_editor.grid(row=0, column=0, columnspan=16, sticky='nsew', padx=20, pady=20)
 
         self.editor_container = ctk.CTkCanvas(master=self.frame_editor, bg=self.frame_editor['background'], highlightthickness=0)
         self.scrollbar_editor = ctk.CTkScrollbar(master=self.frame_editor, orientation='horizontal', command=self.editor_container.xview)
@@ -44,10 +44,6 @@ class App(ctk.CTk):
         self.zoom_out_button.grid(row=1, column=1, pady=(0, 20), sticky='w')
         self.zoom_in_button = ctk.CTkButton(master=self, text='+', width=30, command=self.zoom_in)
         self.zoom_in_button.grid(row=1, column=2, padx=20, pady=(0, 20), sticky='w')
-        self.load_button = ctk.CTkButton(master=self, text='load', width=50, command=self.load)
-        self.load_button.grid(row=1, column=3, pady=(0, 20), sticky='w')
-        self.save_button = ctk.CTkButton(master=self, text='save', width=50, command=self.save)
-        self.save_button.grid(row=1, column=4, padx=20, pady=(0, 20), sticky='w')
         ctk.CTkLabel(master=self, text='', width=10).grid(row=1, column=5, sticky='ew')
         ctk.CTkLabel(master=self, text='time signature:', width=120).grid(row=1, column=6, pady=(0, 20), sticky='e')
         self.time_signature_entry_1 = ctk.CTkEntry(master=self, width=30)
@@ -68,6 +64,13 @@ class App(ctk.CTk):
         self.play_button = ctk.CTkButton(master=self, text='play', width=40, command=self.editor.play)
         self.play_button.grid(row=1, column=14, padx=20, pady=(0, 20), sticky='e')
 
+        self.load_button = ctk.CTkButton(master=self, text='load', width=30, command=self.load)
+        self.load_button.grid(row=2, column=13, columnspan=1, pady=(0, 20), sticky='e')
+        self.save_button = ctk.CTkButton(master=self, text='save', width=30, command=self.save)
+        self.save_button.grid(row=2, column=14, columnspan=1, padx=20, pady=(0, 20), sticky='e')
+        self.mode_switch = ctk.CTkSwitch(master=self, text='min accel', command=self.set_mode)
+        self.mode_switch.grid(row=2, column=6, pady=(0, 20), sticky='e')
+
         self.set_timing()
 
     def on_closing(self, event=0):
@@ -82,13 +85,16 @@ class App(ctk.CTk):
 
     def zoom_in(self):
         self.zoom('in')
-    
+
+    def set_mode(self):
+        self.editor.set_mode(self.mode_switch.get())
+
     def set_timing(self):
         try:
             self.editor.set_timing(int(self.time_signature_entry_1.get()), int(self.time_signature_entry_2.get()), int(self.tempo_entry.get()))
         except Exception as e:
             print(str(e))
-    
+
     def load(self):
         filename = fd.askopenfilename()
         self.editor.load(filename)
@@ -126,10 +132,14 @@ class Trajectory:
     acceleration: int
 
     def duration(self, last_position):
-        return (abs(self.position-last_position)+self.velocity**2/self.acceleration)/self.velocity
+        x_f = abs(self.position - last_position)
+        t_f = (x_f+self.velocity**2/self.acceleration)/self.velocity
+        if 0.5*self.acceleration*(t_f/2)**2 > x_f/2:
+            t_f = 2*math.sqrt(x_f)/math.sqrt(self.acceleration)
+        return t_f
 
 class Editor:
-    HEIGHT = 400
+    HEIGHT = 450
     ZOOM_MIN = 100.0
     ZOOM_MAX = 1000.0
     ZOOM_STEP = 100.0
@@ -139,11 +149,16 @@ class Editor:
     V_HEIGHT = 100.0
     V_SCALE = 0.005
     A_HEIGHT = 100.0
-    A_SCALE = 0.0005
+    A_SCALE = 0.00015
 
     current_zoom = 100.0
     canvas: ctk.CTkCanvas
     events: list[Note | Trajectory]
+
+    A_M = 400000.0
+    V_M = 150000.0
+
+    mode = 0
 
     ts1 = 4
     ts2 = 4
@@ -167,14 +182,19 @@ class Editor:
         self.canvas.create_line(x, y-t/2, x, y+h+t/2, fill='#C0C0C0', width=4)
         self.canvas.create_line(x-t/2, y+zero*h, x+w+t/2, y+zero*h, fill='#C0C0C0', width=4)
 
-    def __generate_trajectory(self, t_f, x_f):
-        # first try minimum acceleration
-        v_m = 2.0*x_f/t_f
-        a_m = 2.0*v_m/t_f
-        if v_m > 100000.0:
-            v_m = 100000.0
-            a_m = v_m**2/(x_f-t_f*v_m)
-        return (v_m, a_m)
+    def generate_trajectory(self, x_f, t_f=None):
+        if t_f is not None:
+            v_m = 2.0*x_f/t_f
+            a_m = 2.0*v_m/t_f
+            if v_m > self.V_M:
+                v_m = self.V_M
+                a_m = v_m**2/(x_f-t_f*v_m)
+            return (v_m, a_m)
+        else:
+            t_f = (x_f+self.V_M**2/self.A_M)/self.V_M
+            if 0.5*self.A_M*(t_f/2)**2 > x_f/2:
+                t_f = 2*math.sqrt(x_f)/math.sqrt(self.A_M)
+            return t_f
 
     def __evaluate_trajectory(self, num_points, t_f, x_f, v_m, a_m):
         x_vals = []
@@ -184,6 +204,9 @@ class Editor:
         t_a = v_m/a_m
         time_step = t_f/num_points
         t = 0.0
+        if t_a > t_f/2:
+            t_a = t_f/2
+            v_m = a_m*t_a
 
         while t < t_a:
             x_vals.append(0.5*a_m*t**2)
@@ -280,18 +303,22 @@ class Editor:
         notes.sort(key=lambda n: n.time)
         events = []
         if len(notes) > 0 and notes[0].position != 0:
-            v, a = self.__generate_trajectory(notes[0].time - 0.05, notes[0].position)
-            events.append(Trajectory(0.025, notes[0].position, int(v), int(a)))
+            v, a = self.generate_trajectory(notes[0].position, t_f=notes[0].time - 0.01)
+            events.append(Trajectory(0.005, notes[0].position, int(v), int(a)))
         if len(notes) >= 1:
             for note, next_note in zip(notes[:-1], notes[1:]):
                 events.append(note)
                 if note.position - next_note.position == 0: continue
-                v, a = self.__generate_trajectory(next_note.time - note.time - 0.05, abs(next_note.position - note.position))
-                events.append(Trajectory(note.time+0.025, next_note.position, int(v), int(a)))
+                if self.mode:
+                    v, a = self.generate_trajectory(abs(next_note.position - note.position), t_f=next_note.time - note.time - 0.01)
+                    events.append(Trajectory(note.time+0.005, next_note.position, int(v), int(a)))
+                else:
+                    t_f = self.generate_trajectory(abs(next_note.position - note.position))
+                    events.append(Trajectory(next_note.time - t_f - 0.01, next_note.position, int(self.V_M), int(self.A_M)))
             events.append(next_note)
         if len(notes) > 0:
-            v, a = self.__generate_trajectory(2, notes[-1].position)
-            events.append(Trajectory(notes[-1].time+0.025, 0, int(v), int(a)))
+            v, a = self.generate_trajectory(notes[-1].position, t_f=2)
+            events.append(Trajectory(notes[-1].time+3.0, 0, int(v), int(a)))
         self.events = events
 
     def left_click_callback(self, event):
@@ -321,7 +348,12 @@ class Editor:
         if self.current_zoom < Editor.ZOOM_MIN: self.current_zoom = Editor.ZOOM_MIN
         if self.current_zoom > Editor.ZOOM_MAX: self.current_zoom = Editor.ZOOM_MAX
         self.draw()
-    
+
+    def set_mode(self, mode):
+        self.mode = mode
+        self.update_events()
+        self.draw()
+
     def set_timing(self, ts1, ts2, tempo):
         for event in self.events:
             event.time *= self.tempo/tempo
