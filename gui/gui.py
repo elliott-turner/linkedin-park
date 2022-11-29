@@ -149,13 +149,13 @@ class Editor:
     V_HEIGHT = 100.0
     V_SCALE = 0.005
     A_HEIGHT = 100.0
-    A_SCALE = 0.0005
+    A_SCALE = 0.00015
 
     current_zoom = 100.0
     canvas: ctk.CTkCanvas
     events: list[Note | Trajectory]
 
-    A_M = 250000.0
+    A_M = 400000.0
     V_M = 150000.0
 
     mode = 0
@@ -207,7 +207,6 @@ class Editor:
         if t_a > t_f/2:
             t_a = t_f/2
             v_m = a_m*t_a
-            print(v_m)
 
         while t < t_a:
             x_vals.append(0.5*a_m*t**2)
@@ -315,9 +314,7 @@ class Editor:
                     events.append(Trajectory(note.time+0.005, next_note.position, int(v), int(a)))
                 else:
                     t_f = self.generate_trajectory(abs(next_note.position - note.position))
-                    traj = Trajectory(next_note.time - t_f - 0.01, next_note.position, int(self.V_M), int(self.A_M))
-                    print(traj)
-                    events.append(traj)
+                    events.append(Trajectory(next_note.time - t_f - 0.01, next_note.position, int(self.V_M), int(self.A_M)))
             events.append(next_note)
         if len(notes) > 0:
             v, a = self.generate_trajectory(notes[-1].position, t_f=2)
@@ -377,7 +374,6 @@ class Editor:
         for event in self.events:
             time.sleep(event.time - last_time)
             last_time = event.time
-            print(event.time)
             if type(event) is Trajectory:
                 self.instrument.move(event.position, event.velocity, event.acceleration)
             else:
@@ -433,11 +429,9 @@ class Instrument:
         pass
 
     def move(self, p, v, a):
-        print(f'M {round(p)} {round(v)} {round(a)}\n'.encode('ASCII'))
         self.ser.write(f'M {round(p)} {round(v)} {round(a)}\n'.encode('ASCII'))
 
     def pluck(self):
-        print(f'P\n'.encode('ASCII'))
         self.ser.write(f'P\n'.encode('ASCII'))
 
 
