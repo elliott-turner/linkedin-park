@@ -97,7 +97,13 @@ class App(ctk.CTk):
 
     def load(self):
         filename = fd.askopenfilename()
-        self.editor.load(filename)
+        ts1, ts2, tempo = self.editor.load(filename)
+        self.time_signature_entry_1.delete(0,tk.END)
+        self.time_signature_entry_1.insert(0,str(ts1))
+        self.time_signature_entry_2.delete(0,tk.END)
+        self.time_signature_entry_2.insert(0,str(ts2))
+        self.tempo_entry.delete(0,tk.END)
+        self.tempo_entry.insert(0,str(tempo))
 
     def save(self):
         filename = fd.askopenfilename()
@@ -155,7 +161,7 @@ class Editor:
     canvas: ctk.CTkCanvas
     events: list[Note | Trajectory]
 
-    A_M = 400000.0
+    A_M = 200000.0
     V_M = 150000.0
 
     mode = 0
@@ -303,18 +309,18 @@ class Editor:
         notes.sort(key=lambda n: n.time)
         events = []
         if len(notes) > 0 and notes[0].position != 0:
-            v, a = self.generate_trajectory(notes[0].position, t_f=notes[0].time - 0.01)
-            events.append(Trajectory(0.005, notes[0].position, int(v), int(a)))
+            v, a = self.generate_trajectory(notes[0].position, t_f=notes[0].time - 0.04)
+            events.append(Trajectory(0.02, notes[0].position, int(v), int(a)))
         if len(notes) >= 1:
             for note, next_note in zip(notes[:-1], notes[1:]):
                 events.append(note)
                 if note.position - next_note.position == 0: continue
                 if self.mode:
-                    v, a = self.generate_trajectory(abs(next_note.position - note.position), t_f=next_note.time - note.time - 0.01)
-                    events.append(Trajectory(note.time+0.005, next_note.position, int(v), int(a)))
+                    v, a = self.generate_trajectory(abs(next_note.position - note.position), t_f=next_note.time - note.time - 0.04)
+                    events.append(Trajectory(note.time+0.02, next_note.position, int(v), int(a)))
                 else:
                     t_f = self.generate_trajectory(abs(next_note.position - note.position))
-                    events.append(Trajectory(next_note.time - t_f - 0.01, next_note.position, int(self.V_M), int(self.A_M)))
+                    events.append(Trajectory(next_note.time - t_f - 0.04, next_note.position, int(self.V_M), int(self.A_M)))
             events.append(next_note)
         if len(notes) > 0:
             v, a = self.generate_trajectory(notes[-1].position, t_f=2)
@@ -409,7 +415,7 @@ class Editor:
                 data = yaml.load(f, Loader=yaml.FullLoader)
             self.ts1 = data['ts1']
             self.ts2 = data['ts2']
-            self.temp = data['tempo']
+            self.tempo = data['tempo']
             notes = data['notes']
             events = []
             for note in notes:
@@ -419,6 +425,7 @@ class Editor:
             print(str(e))
         self.update_events()
         self.draw()
+        return (self.ts1, self.ts2, self.tempo)
 
 
 class Instrument:
