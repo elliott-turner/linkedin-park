@@ -10,5 +10,6 @@ void setup() {
 
 void loop() {
   stepper_tasks();
+  servo_tasks();
   serial_cmd_tasks();
 }
