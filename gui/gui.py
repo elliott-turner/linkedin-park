@@ -378,7 +378,10 @@ class Editor:
             self.instrument.move(self.events[0].position, self.events[0].velocity, self.events[0].acceleration)
         last_time = 0.0
         for event in self.events:
-            time.sleep(event.time - last_time)
+            if type(event) is Note:
+                time.sleep(event.time - last_time - 0.01)
+            else:
+                time.sleep(event.time - last_time)
             last_time = event.time
             if type(event) is Trajectory:
                 self.instrument.move(event.position, event.velocity, event.acceleration)

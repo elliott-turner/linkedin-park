@@ -10,7 +10,7 @@
 #define POS_RIGHT 125
 #define POS_RIGHT_STBY 95
 
-#define PLUCK_TIME 250000
+#define PLUCK_TIME 80000
 
 void servo_setup();
 void servo_tasks();
